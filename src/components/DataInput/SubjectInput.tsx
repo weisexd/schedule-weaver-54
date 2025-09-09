@@ -60,7 +60,11 @@ export default function SubjectInput({ subjects, onSubjectsChange }: SubjectInpu
   // Удаление предмета
   const deleteSubject = (id: string) => {
     if (confirm('Удалить предмет? Это также удалит его у всех преподавателей и групп.')) {
-      onSubjectsChange(subjects.filter(s => s.id !== id));
+      const updatedSubjects = subjects.filter(s => s.id !== id);
+      onSubjectsChange(updatedSubjects);
+      
+      // Уведомляем родительский компонент о необходимости очистки связанных данных
+      window.dispatchEvent(new CustomEvent('subjectDeleted', { detail: { deletedSubjectId: id } }));
     }
   };
 

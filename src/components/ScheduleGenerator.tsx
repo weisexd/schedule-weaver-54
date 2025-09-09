@@ -28,6 +28,35 @@ export default function ScheduleGenerator() {
     preferFiveDays: true,
   });
 
+  // Обработчик удаления предмета - очищаем все связанные данные
+  React.useEffect(() => {
+    const handleSubjectDeleted = (event: CustomEvent) => {
+      const { deletedSubjectId } = event.detail;
+      
+      // Очищаем предметы у преподавателей
+      setTeachers(prevTeachers => 
+        prevTeachers.map(teacher => ({
+          ...teacher,
+          subjects: teacher.subjects.filter(subjectId => subjectId !== deletedSubjectId)
+        }))
+      );
+      
+      // Очищаем предметы у групп
+      setGroups(prevGroups => 
+        prevGroups.map(group => ({
+          ...group,
+          subjects: group.subjects.filter(subjectId => subjectId !== deletedSubjectId)
+        }))
+      );
+      
+      // Очищаем сгенерированное расписание
+      setGeneratedSchedule(null);
+    };
+
+    window.addEventListener('subjectDeleted', handleSubjectDeleted as EventListener);
+    return () => window.removeEventListener('subjectDeleted', handleSubjectDeleted as EventListener);
+  }, []);
+
   // Валидация данных перед генерацией
   const validateData = (): boolean => {
     if (subjects.length === 0) {
@@ -117,7 +146,7 @@ export default function ScheduleGenerator() {
           <CardTitle>Расписание группы {groupName}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-2 text-sm">
+          <div className={`grid gap-2 text-sm`} style={{ gridTemplateColumns: `auto repeat(${settings.maxDaysPerWeek}, 1fr)` }}>
             {/* Заголовки */}
             <div className="font-semibold p-2">Время</div>
             {WEEKDAYS.slice(0, settings.maxDaysPerWeek).map((day, index) => (
@@ -214,7 +243,9 @@ export default function ScheduleGenerator() {
                         setSettings(prev => ({ ...prev, preferFiveDays: checked }))
                       }
                     />
-                    <Label>Приоритет 5-дневке</Label>
+                    <Label title="Приоритетно размещать занятия в понедельник-пятницу, оставляя субботу для переполнения">
+                      Приоритет 5-дневке
+                    </Label>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -224,7 +255,9 @@ export default function ScheduleGenerator() {
                         setSettings(prev => ({ ...prev, balanceLoad: checked }))
                       }
                     />
-                    <Label>Балансировать нагрузку</Label>
+                    <Label title="Равномерно распределять нагрузку между преподавателями, учитывая их максимальные часы">
+                      Балансировать нагрузку
+                    </Label>
                   </div>
 
                   <div className="flex items-center space-x-3">
