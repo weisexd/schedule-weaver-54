@@ -1,17 +1,25 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScheduleGenerator as Generator } from '@/utils/scheduleGenerator';
-import { GeneratedSchedule, Teacher } from '@/types/schedule';
-import { TIME_SLOTS, SUBJECTS, TEACHERS, GROUPS, WEEKDAYS } from '@/data/scheduleData';
+import { GeneratedSchedule, Teacher, Subject, Group } from '@/types/schedule';
+import { TIME_SLOTS, WEEKDAYS } from '@/data/scheduleData';
+import TeacherInput from './DataInput/TeacherInput';
+import SubjectInput from './DataInput/SubjectInput';
+import GroupInput from './DataInput/GroupInput';
 
 export default function ScheduleGenerator() {
-  const [teachers, setTeachers] = useState<Teacher[]>(TEACHERS);
+  // Пользовательские данные
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  
+  // Состояние генерации
   const [generatedSchedule, setGeneratedSchedule] = useState<GeneratedSchedule | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [settings, setSettings] = useState({
@@ -20,26 +28,51 @@ export default function ScheduleGenerator() {
     preferFiveDays: true,
   });
 
-  // Обновление часов преподавателя
-  const updateTeacherHours = (teacherId: string, hours: number) => {
-    if (hours < 0 || hours > 50) return; // валидация
+  // Валидация данных перед генерацией
+  const validateData = (): boolean => {
+    if (subjects.length === 0) {
+      alert('Добавьте хотя бы один предмет');
+      return false;
+    }
     
-    setTeachers(prev => prev.map(teacher => 
-      teacher.id === teacherId 
-        ? { ...teacher, weeklyHours: hours }
-        : teacher
-    ));
+    if (teachers.length === 0) {
+      alert('Добавьте хотя бы одного преподавателя');
+      return false;
+    }
+    
+    if (groups.length === 0) {
+      alert('Добавьте хотя бы одну группу');
+      return false;
+    }
+    
+    // Проверяем, что у всех преподавателей есть предметы
+    const teachersWithoutSubjects = teachers.filter(t => t.subjects.length === 0);
+    if (teachersWithoutSubjects.length > 0) {
+      alert(`У преподавателей нет предметов: ${teachersWithoutSubjects.map(t => t.name).join(', ')}`);
+      return false;
+    }
+    
+    // Проверяем, что у всех групп есть предметы
+    const groupsWithoutSubjects = groups.filter(g => g.subjects.length === 0);
+    if (groupsWithoutSubjects.length > 0) {
+      alert(`У групп нет предметов: ${groupsWithoutSubjects.map(g => g.name).join(', ')}`);
+      return false;
+    }
+    
+    return true;
   };
 
   // Генерация расписания
   const generateSchedule = () => {
+    if (!validateData()) return;
+    
     setIsGenerating(true);
     
     try {
       const generator = new Generator({
-        groups: GROUPS,
+        groups: groups,
         teachers: teachers,
-        subjects: SUBJECTS,
+        subjects: subjects,
         timeSlots: TIME_SLOTS,
         maxDaysPerWeek: settings.maxDaysPerWeek,
         balanceLoad: settings.balanceLoad,
@@ -50,6 +83,7 @@ export default function ScheduleGenerator() {
       setGeneratedSchedule(result);
     } catch (error) {
       console.error('Ошибка генерации расписания:', error);
+      alert('Ошибка при генерации расписания. Проверьте данные.');
     } finally {
       setIsGenerating(false);
     }
@@ -57,7 +91,7 @@ export default function ScheduleGenerator() {
 
   // Получить название предмета
   const getSubjectName = (id: string) => {
-    return SUBJECTS.find(s => s.id === id)?.shortName || id;
+    return subjects.find(s => s.id === id)?.shortName || id;
   };
 
   // Получить имя преподавателя
@@ -67,7 +101,7 @@ export default function ScheduleGenerator() {
 
   // Получить название группы
   const getGroupName = (id: string) => {
-    return GROUPS.find(g => g.id === id)?.name || id;
+    return groups.find(g => g.id === id)?.name || id;
   };
 
   // Рендер расписания для группы
@@ -136,80 +170,99 @@ export default function ScheduleGenerator() {
         <CardHeader>
           <CardTitle>Генератор расписания</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Настройки преподавателей */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Часы нагрузки преподавателей</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teachers.map(teacher => (
-                <div key={teacher.id} className="flex items-center space-x-3">
-                  <Label className="w-48 text-sm">{teacher.name}</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="50"
-                    value={teacher.weeklyHours}
-                    onChange={(e) => updateTeacherHours(teacher.id, parseInt(e.target.value) || 0)}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">пар/неделю</span>
+        <CardContent>
+          <Tabs defaultValue="subjects" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="subjects">Предметы</TabsTrigger>
+              <TabsTrigger value="teachers">Преподаватели</TabsTrigger>
+              <TabsTrigger value="groups">Группы</TabsTrigger>
+              <TabsTrigger value="generate">Генерация</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="subjects" className="mt-6">
+              <SubjectInput 
+                subjects={subjects}
+                onSubjectsChange={setSubjects}
+              />
+            </TabsContent>
+            
+            <TabsContent value="teachers" className="mt-6">
+              <TeacherInput 
+                teachers={teachers}
+                onTeachersChange={setTeachers}
+                availableSubjects={subjects}
+              />
+            </TabsContent>
+            
+            <TabsContent value="groups" className="mt-6">
+              <GroupInput 
+                groups={groups}
+                onGroupsChange={setGroups}
+                availableSubjects={subjects}
+              />
+            </TabsContent>
+            
+            <TabsContent value="generate" className="mt-6 space-y-6">
+              {/* Настройки генерации */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Настройки генерации</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={settings.preferFiveDays}
+                      onCheckedChange={(checked) => 
+                        setSettings(prev => ({ ...prev, preferFiveDays: checked }))
+                      }
+                    />
+                    <Label>Приоритет 5-дневке</Label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={settings.balanceLoad}
+                      onCheckedChange={(checked) => 
+                        setSettings(prev => ({ ...prev, balanceLoad: checked }))
+                      }
+                    />
+                    <Label>Балансировать нагрузку</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <Label>Макс. дней в неделе:</Label>
+                    <select 
+                      value={settings.maxDaysPerWeek}
+                      onChange={(e) => 
+                        setSettings(prev => ({ 
+                          ...prev, 
+                          maxDaysPerWeek: parseInt(e.target.value)
+                        }))
+                      }
+                      className="p-2 border rounded"
+                    >
+                      <option value={5}>5 дней</option>
+                      <option value={6}>6 дней</option>
+                    </select>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Настройки генерации */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Настройки генерации</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={settings.preferFiveDays}
-                  onCheckedChange={(checked) => 
-                    setSettings(prev => ({ ...prev, preferFiveDays: checked }))
-                  }
-                />
-                <Label>Приоритет 5-дневке</Label>
               </div>
+
+              {/* Кнопка генерации */}
+              <Button 
+                onClick={generateSchedule} 
+                disabled={isGenerating || subjects.length === 0 || teachers.length === 0 || groups.length === 0}
+                className="w-full"
+                size="lg"
+              >
+                {isGenerating ? 'Генерируем...' : 'Сгенерировать расписание'}
+              </Button>
               
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={settings.balanceLoad}
-                  onCheckedChange={(checked) => 
-                    setSettings(prev => ({ ...prev, balanceLoad: checked }))
-                  }
-                />
-                <Label>Балансировать нагрузку</Label>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <Label>Макс. дней в неделе:</Label>
-                <Input
-                  type="number"
-                  min="5"
-                  max="6"
-                  value={settings.maxDaysPerWeek}
-                  onChange={(e) => 
-                    setSettings(prev => ({ 
-                      ...prev, 
-                      maxDaysPerWeek: Math.min(6, Math.max(5, parseInt(e.target.value) || 5))
-                    }))
-                  }
-                  className="w-20"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Кнопка генерации */}
-          <Button 
-            onClick={generateSchedule} 
-            disabled={isGenerating}
-            className="w-full"
-            size="lg"
-          >
-            {isGenerating ? 'Генерируем...' : 'Сгенерировать расписание'}
-          </Button>
+              {(subjects.length === 0 || teachers.length === 0 || groups.length === 0) && (
+                <p className="text-center text-muted-foreground text-sm">
+                  Для генерации необходимо добавить предметы, преподавателей и группы
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -246,7 +299,7 @@ export default function ScheduleGenerator() {
           {/* Расписания групп */}
           <div>
             <h2 className="text-2xl font-bold mb-4">Сгенерированное расписание</h2>
-            {GROUPS.map(group => renderGroupSchedule(group.id))}
+            {groups.map(group => renderGroupSchedule(group.id))}
           </div>
         </>
       )}
