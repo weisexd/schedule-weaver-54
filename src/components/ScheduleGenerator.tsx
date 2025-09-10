@@ -37,15 +37,10 @@ export default function ScheduleGenerator() {
       setTeachers(prevTeachers => 
         prevTeachers.map(teacher => ({
           ...teacher,
-          subjects: teacher.subjects.filter(subjectId => subjectId !== deletedSubjectId)
-        }))
-      );
-      
-      // Очищаем предметы у групп
-      setGroups(prevGroups => 
-        prevGroups.map(group => ({
-          ...group,
-          subjects: group.subjects.filter(subjectId => subjectId !== deletedSubjectId)
+          groups: teacher.groups.map(group => ({
+            ...group,
+            subjects: group.subjects.filter(subject => subject.subjectId !== deletedSubjectId)
+          }))
         }))
       );
       
@@ -216,19 +211,19 @@ export default function ScheduleGenerator() {
             </TabsContent>
             
             <TabsContent value="teachers" className="mt-6">
-              <TeacherInput 
-                teachers={teachers}
-                onTeachersChange={setTeachers}
-                availableSubjects={subjects}
-              />
+          <TeacherInput
+            teachers={teachers}
+            onTeachersChange={setTeachers}
+            availableSubjects={subjects}
+            availableGroups={groups}
+          />
             </TabsContent>
             
             <TabsContent value="groups" className="mt-6">
-              <GroupInput 
-                groups={groups}
-                onGroupsChange={setGroups}
-                availableSubjects={subjects}
-              />
+          <GroupInput
+            groups={groups}
+            onGroupsChange={setGroups}
+          />
             </TabsContent>
             
             <TabsContent value="generate" className="mt-6 space-y-6">

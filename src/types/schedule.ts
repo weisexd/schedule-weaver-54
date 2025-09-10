@@ -13,17 +13,25 @@ export interface Subject {
   shortName: string;
 }
 
+export interface TeacherSubject {
+  subjectId: string;
+  hours: number; // количество часов (1 пара = 2 часа)
+}
+
+export interface TeacherGroup {
+  groupId: string;
+  subjects: TeacherSubject[];
+}
+
 export interface Teacher {
   id: string;
   name: string;
-  subjects: string[]; // массив ID предметов, которые может вести
-  weeklyHours: number; // максимальное количество пар в неделю
+  groups: TeacherGroup[]; // группы и предметы которые ведет преподаватель
 }
 
 export interface Group {
   id: string;
   name: string;
-  subjects: string[]; // массив ID предметов для группы
 }
 
 export interface ScheduleItem {
